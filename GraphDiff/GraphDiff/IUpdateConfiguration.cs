@@ -75,6 +75,11 @@ namespace RefactorThis.GraphDiff
             return config;
         }
 
+        public static IUpdateConfiguration<T> OwnedCollectionOfType<T, T2, T3>(this IUpdateConfiguration<T> config, Expression<Func<T, Tuple<ICollection<T2>, T3>>> expression)
+        {
+            return config;
+        }
+
         /// <summary>
         /// States that the child collection is not a part of the aggregate. The parent's navigation property will be updated, but entity changes to the
         /// child entities will not be saved.

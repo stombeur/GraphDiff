@@ -11,10 +11,11 @@ namespace RefactorThis.GraphDiff.Internal.Graph
     {
         private readonly bool _isOwned;
 
-        internal CollectionGraphNode(GraphNode parent, PropertyInfo accessor, bool isOwned)
-            : base(parent, accessor)
+        internal CollectionGraphNode(GraphNode parent, PropertyInfo accessor, bool isOwned, bool isOfType = false)
+            : base(parent, accessor, isOfType)
         {
             _isOwned = isOwned;
+
         }
 
         public override void Update<T>(IChangeTracker changeTracker, IEntityManager entityManager, T existing, T entity)

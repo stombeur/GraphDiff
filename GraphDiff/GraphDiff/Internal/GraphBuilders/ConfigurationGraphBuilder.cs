@@ -59,6 +59,9 @@ namespace RefactorThis.GraphDiff.Internal.GraphBuilders
                 case "OwnedCollection":
                     newMember = GraphNodeFactory.Create(_currentMember, accessor, true, true);
                     break;
+                case "OwnedCollectionOfType":
+                    newMember = GraphNodeFactory.Create(_currentMember, accessor, true, true, true);
+                    break;
                 case "AssociatedCollection":
                     newMember = GraphNodeFactory.Create(_currentMember, accessor, true, false);
                     break;

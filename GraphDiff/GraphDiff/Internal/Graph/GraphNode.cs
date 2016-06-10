@@ -2,18 +2,83 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Security.AccessControl;
+using System.Text.RegularExpressions;
 
 namespace RefactorThis.GraphDiff.Internal.Graph
 {
+    internal static class StringExtensions
+    {
+        internal static bool HasOfType(this string input)
+        {
+            return input.Contains(OfTypeIncludeString.Prefix);
+        }
+
+    }
+    internal class OfTypeIncludeString
+    {
+        public const string Prefix = "{OfType";
+        public const string Separator = "|";
+        public const string Postfix = "}";
+
+        public Type Type { get; set; }
+        public string Include { get; set; }
+
+        public string ParentInclude { get; set; }
+
+        public static OfTypeIncludeString Create(PropertyInfo accessor, string parentInclude)
+        {
+            var result = new OfTypeIncludeString()
+            {
+                Type = accessor.ReflectedType,
+                Include = accessor.Name,
+                ParentInclude = parentInclude
+            };
+            return result;
+        }
+
+        public override string ToString()
+        {
+            var result = $"{Prefix}{Separator}{Type.AssemblyQualifiedName}{Separator}{Include}{Postfix}";
+            if (!string.IsNullOrWhiteSpace(ParentInclude)) result = ParentInclude + "." + result;
+            return result;
+        }
+
+        public static OfTypeIncludeString FromString(string input)
+        {
+            var regex = new Regex(@"(.*)\{OfType\|(.*)\|(.*)\}(.*)");
+            var match = regex.Match(input);
+            if (match.Success)
+            {
+                var parentInclude = match.Groups[1].Value;
+                parentInclude= parentInclude.TrimEnd('.');
+
+                var result = new OfTypeIncludeString()
+                {
+                    ParentInclude = parentInclude,
+                    Type = Type.GetType(match.Groups[2].Value),
+                    Include = match.Groups[3].Value
+                };
+                return result;
+            }
+            return null;
+
+
+        }
+    }
+
     internal class GraphNode
-    {       
+    {
         protected readonly PropertyInfo Accessor;
+        private readonly bool _isOfType;
 
         protected string IncludeString
         {
             get
             {
                 var ownIncludeString = Accessor != null ? Accessor.Name : null;
+                if (_isOfType && Accessor != null)
+                    return OfTypeIncludeString.Create(Accessor, Parent?.IncludeString).ToString();
                 return Parent != null && Parent.IncludeString != null
                         ? Parent.IncludeString + "." + ownIncludeString
                         : ownIncludeString;
@@ -28,9 +93,10 @@ namespace RefactorThis.GraphDiff.Internal.Graph
             Members = new Stack<GraphNode>();
         }
 
-        protected GraphNode(GraphNode parent, PropertyInfo accessor)
+        protected GraphNode(GraphNode parent, PropertyInfo accessor, bool isOfType = false)
         {
             Accessor = accessor;
+            _isOfType = isOfType;
             Members = new Stack<GraphNode>();
             Parent = parent;
         }

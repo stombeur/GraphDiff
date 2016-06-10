@@ -4,6 +4,7 @@ using System.Data.Entity;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Reflection;
+using RefactorThis.GraphDiff.Internal.Graph;
 
 namespace RefactorThis.GraphDiff.Internal
 {
@@ -36,18 +37,37 @@ namespace RefactorThis.GraphDiff.Internal
             return LoadEntity(keyPredicate, includeStrings, queryMode);
         }
 
+        private IQueryable<T> CreateInclude<T>(IQueryable<T> current, string include) where T : class
+        {
+            // let's pretend there is only one oftype
+            if (include.HasOfType())
+            {
+                var ofType = OfTypeIncludeString.FromString(include);
+
+                MethodInfo method = typeof(Queryable).GetMethod("OfType");
+                MethodInfo generic = method.MakeGenericMethod(new Type[] { ofType.Type });
+
+                IQueryable<T> result = current;
+                if (!string.IsNullOrWhiteSpace(ofType.ParentInclude)) result = result.Include(ofType.ParentInclude); //do parent includes first
+                var o = generic.Invoke(null, new object[] { result });
+                result = ((IQueryable<T>) generic.Invoke(null, new object[] {result})); //then do oftype
+                return  result.Include(ofType.Include);
+            }
+            return current.Include(include);
+        }
+
         public T LoadEntity<T>(Expression<Func<T, bool>> keyPredicate, IEnumerable<string> includeStrings, QueryMode queryMode) where T : class
         {
             if (queryMode == QueryMode.SingleQuery)
             {
                 var query = _context.Set<T>().AsQueryable();
-                query = includeStrings.Aggregate(query, (current, include) => current.Include(include));
+                query = includeStrings.Aggregate(query, CreateInclude);
                 return query.SingleOrDefault(keyPredicate);
             }
 
             if (queryMode == QueryMode.MultipleQuery)
             {
-                // This is experimental - needs some testing. 
+                // This is experimental - needs some testing.
                 foreach (var include in includeStrings)
                 {
                     var query = _context.Set<T>().AsQueryable();
